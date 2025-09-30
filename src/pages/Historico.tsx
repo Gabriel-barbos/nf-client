@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { History as HistoryIcon, Download, FileText, Calendar } from "lucide-react";
+import { History as HistoryIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -91,46 +91,9 @@ export default function Historico() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Histórico de Notas</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-2">
           Consulte todas as notas fiscais emitidas
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Notas</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{notas.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <span className="text-xl">R$</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Última Emissão</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {notas.length > 0
-                ? formatDate(notas[0].dataEmissao).split(" ")[0]
-                : "-"}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Search */}

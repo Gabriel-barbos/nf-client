@@ -100,47 +100,14 @@ export default function Destinatarios() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Destinatários</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie os destinatários das notas fiscais
+          <p className="text-muted-foreground mt-2">
+            Destinatários cadastrados: <span className="font-semibold text-foreground">{destinatarios.length}</span>
           </p>
         </div>
         <Button onClick={handleCreate} className="bg-gradient-success">
           <Plus className="mr-2 h-4 w-4" />
           Novo Destinatário
         </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{destinatarios.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pessoas Físicas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {destinatarios.filter((d) => d.tipo === "PF").length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pessoas Jurídicas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {destinatarios.filter((d) => d.tipo === "PJ").length}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Search */}
@@ -168,7 +135,7 @@ export default function Destinatarios() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>CPF/CNPJ</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>Endereço</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Cidade/UF</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -186,7 +153,10 @@ export default function Destinatarios() {
                     <TableCell className="font-mono text-sm">
                       {dest.cpf || dest.cnpj}
                     </TableCell>
-                    <TableCell>{dest.email}</TableCell>
+                    <TableCell>
+                      {dest.endereco.logradouro}, {dest.endereco.numero}
+                      {dest.endereco.complemento && `, ${dest.endereco.complemento}`}
+                    </TableCell>
                     <TableCell>{dest.telefone}</TableCell>
                     <TableCell>
                       {dest.endereco.cidade}/{dest.endereco.estado}

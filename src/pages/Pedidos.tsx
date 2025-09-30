@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Download, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -93,8 +93,8 @@ export default function Pedidos() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Pedidos Pendentes</h1>
-          <p className="text-muted-foreground mt-1">
-            Selecione os pedidos para emitir notas fiscais
+          <p className="text-muted-foreground mt-2">
+            Pedidos com NF pendente: <span className="font-semibold text-foreground">{pedidos.length}</span>
           </p>
         </div>
         <div className="flex gap-3">
@@ -114,42 +114,6 @@ export default function Pedidos() {
             {selectedPedidos.size > 0 && ` (${selectedPedidos.size})`}
           </Button>
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pedidos.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Selecionados</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{selectedPedidos.size}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <span className="text-xl">R$</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pedidos
-                .filter((p) => selectedPedidos.has(p.id))
-                .reduce((sum, p) => sum + p.valor, 0)
-                .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Pedidos List */}
@@ -227,7 +191,6 @@ export default function Pedidos() {
       {pedidos.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-lg font-medium text-muted-foreground">
               Nenhum pedido pendente
             </p>
