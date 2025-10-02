@@ -8,7 +8,7 @@ import Pedidos from "./pages/Pedidos";
 import Destinatarios from "./pages/Destinatarios";
 import Historico from "./pages/Historico";
 import NotFound from "./pages/NotFound";
-
+import Resultados from "./pages/Resultados";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -22,6 +22,7 @@ const App = () => (
             <Route path="/" element={<Pedidos />} />
             <Route path="/destinatarios" element={<Destinatarios />} />
             <Route path="/historico" element={<Historico />} />
+            <Route path="/resultados" element={<Resultados />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

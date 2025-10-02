@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Users, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -13,68 +13,27 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Destinatario } from "@/types";
-
-// Dados mockados
-const destinatariosMock: Destinatario[] = [
-  {
-    id: "dest-1",
-    tipo: "PF",
-    nome: "João Silva",
-    cpf: "123.456.789-00",
-    email: "joao@email.com",
-    telefone: "(11) 98765-4321",
-    endereco: {
-      logradouro: "Rua das Flores",
-      numero: "123",
-      bairro: "Centro",
-      cidade: "São Paulo",
-      estado: "SP",
-      cep: "01234-567",
-    },
-    createdAt: "2024-01-10",
-  },
-  {
-    id: "dest-2",
-    tipo: "PJ",
-    nome: "Empresa ABC Ltda",
-    cnpj: "12.345.678/0001-90",
-    email: "contato@empresaabc.com",
-    telefone: "(11) 3456-7890",
-    endereco: {
-      logradouro: "Av. Paulista",
-      numero: "1000",
-      complemento: "Sala 200",
-      bairro: "Bela Vista",
-      cidade: "São Paulo",
-      estado: "SP",
-      cep: "01310-100",
-    },
-    createdAt: "2024-01-12",
-  },
-  {
-    id: "dest-3",
-    tipo: "PF",
-    nome: "Maria Santos",
-    cpf: "987.654.321-00",
-    email: "maria@email.com",
-    telefone: "(21) 99876-5432",
-    endereco: {
-      logradouro: "Rua do Comércio",
-      numero: "456",
-      bairro: "Centro",
-      cidade: "Rio de Janeiro",
-      estado: "RJ",
-      cep: "20040-020",
-    },
-    createdAt: "2024-01-15",
-  },
-];
+import { useDestinatarios } from "@/hooks/useDestinatarios"; 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import DestinatarioDrawer from "@/components/destinatarios/DestinatarioDrawer";
 
 export default function Destinatarios() {
-  const [destinatarios] = useState<Destinatario[]>(destinatariosMock);
+  const { destinatarios, loading, error, deleteDestinatario } = useDestinatarios();
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  // Filtro
   const filteredDestinatarios = destinatarios.filter(
     (dest) =>
       dest.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,17 +41,40 @@ export default function Destinatarios() {
       (dest.cnpj && dest.cnpj.includes(searchTerm))
   );
 
+  // Paginação
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedDestinatarios = filteredDestinatarios.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredDestinatarios.length / itemsPerPage);
+
+  const getTipo = (dest: any) => {
+    if (dest.cnpj && dest.cnpj.trim() !== "") return "CNPJ";
+    if (dest.cpf && dest.cpf.trim() !== "") return "CPF";
+    return "Padrão";
+  };
+
   const handleEdit = (id: string) => {
     toast.info("Funcionalidade de edição em desenvolvimento");
   };
 
-  const handleDelete = (id: string) => {
-    toast.info("Funcionalidade de exclusão em desenvolvimento");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDestinatario(id);
+      toast.success("Destinatário excluído com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao excluir destinatário.");
+    }
   };
 
   const handleCreate = () => {
-    toast.info("Funcionalidade de cadastro em desenvolvimento");
+    setDrawerOpen(true);
   };
+
+
+  if (loading) return <p className="text-center mt-10">Carregando destinatários...</p>;
+  if (error) return <p className="text-center mt-10 text-destructive">{error}</p>;
 
   return (
     <div className="space-y-6">
@@ -101,14 +83,14 @@ export default function Destinatarios() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Destinatários</h1>
           <p className="text-muted-foreground mt-2">
-            Destinatários cadastrados: <span className="font-semibold text-foreground">{destinatarios.length}</span>
+            Destinatários cadastrados:{" "}
+            <span className="font-semibold text-foreground">{destinatarios.length}</span>
           </p>
         </div>
-        <Button onClick={handleCreate} className="bg-gradient-success">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Destinatário
-        </Button>
+
+        <DestinatarioDrawer />
       </div>
+
 
       {/* Search */}
       <Card>
@@ -142,11 +124,11 @@ export default function Destinatarios() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDestinatarios.map((dest) => (
-                  <TableRow key={dest.id}>
+                {paginatedDestinatarios.map((dest) => (
+                  <TableRow key={dest._id}>
                     <TableCell>
-                      <Badge variant={dest.tipo === "PF" ? "default" : "secondary"}>
-                        {dest.tipo}
+                      <Badge variant={getTipo(dest) === "CPF" ? "default" : "secondary"}>
+                        {getTipo(dest)}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{dest.nome}</TableCell>
@@ -154,44 +136,76 @@ export default function Destinatarios() {
                       {dest.cpf || dest.cnpj}
                     </TableCell>
                     <TableCell>
-                      {dest.endereco.logradouro}, {dest.endereco.numero}
-                      {dest.endereco.complemento && `, ${dest.endereco.complemento}`}
+                      {dest.endereco}, {dest.numero}
+                      {dest.complemento && `, ${dest.complemento}`}
                     </TableCell>
-                    <TableCell>{dest.telefone}</TableCell>
+                    <TableCell>{dest.telefone || dest.celular || "-"}</TableCell>
                     <TableCell>
-                      {dest.endereco.cidade}/{dest.endereco.estado}
+                      {dest.cidade}/{dest.estado}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEdit(dest.id)}
+                          onClick={() => handleEdit(dest._id!)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(dest.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Destinatário</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir <b>{dest.nome}</b>?
+                                Esta ação não poderá ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-white hover:bg-destructive/90"
+                                onClick={() => handleDelete(dest._id!)}
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredDestinatarios.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        Nenhum destinatário encontrado
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
+            {/* Paginação */}
+            <div className="flex justify-between items-center mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+              >
+                Anterior
+              </Button>
+              <span>
+                Página {currentPage} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,5 +1,5 @@
 export interface Destinatario {
-  id: string;
+  _id: string;
   tipo: "PF" | "PJ";
   nome: string;
   cpf?: string;

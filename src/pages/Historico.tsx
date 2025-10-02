@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { History as HistoryIcon, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -10,66 +10,60 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { NotaFiscal } from "@/types";
 
-// Dados mockados
-const notasMock: NotaFiscal[] = [
-  {
-    id: "nf-1",
-    numero: "000001",
-    serie: "1",
-    chave: "35240112345678901234567890123456789012345678",
-    pedidoId: "ped-1",
-    destinatarioId: "dest-1",
-    destinatarioNome: "João Silva",
-    valor: 15000,
-    status: "emitida",
-    dataEmissao: "2024-01-20T10:30:00",
-    pdfUrl: "#",
-  },
-  {
-    id: "nf-2",
-    numero: "000002",
-    serie: "1",
-    chave: "35240112345678901234567890123456789012345679",
-    pedidoId: "ped-2",
-    destinatarioId: "dest-2",
-    destinatarioNome: "Empresa ABC Ltda",
-    valor: 25000,
-    status: "emitida",
-    dataEmissao: "2024-01-21T14:15:00",
-    pdfUrl: "#",
-  },
-  {
-    id: "nf-3",
-    numero: "000003",
-    serie: "1",
-    chave: "35240112345678901234567890123456789012345680",
-    pedidoId: "ped-3",
-    destinatarioId: "dest-3",
-    destinatarioNome: "Maria Santos",
-    valor: 8500,
-    status: "emitida",
-    dataEmissao: "2024-01-22T09:45:00",
-    pdfUrl: "#",
-  },
-];
+type NotaAPI = {
+  _id: string;
+  numero: number;
+  eventoId: string;
+  dataAutorizacao: string;
+  protocolo: string;
+  destinatario: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export default function Historico() {
-  const [notas] = useState<NotaFiscal[]>(notasMock);
+  const [notas, setNotas] = useState<NotaAPI[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+
+ useEffect(() => {
+  const fetchNotas = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/nota/historico");
+      if (!res.ok) throw new Error("Erro ao buscar notas fiscais");
+
+      const data = await res.json();
+      console.log("Resposta API:", data);
+
+      setNotas(data.dados || []); // <-- pega só as notas
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar histórico de notas");
+      setNotas([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchNotas();
+}, []);
+
+
+
 
   const filteredNotas = notas.filter(
     (nota) =>
-      nota.numero.includes(searchTerm) ||
-      nota.destinatarioNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nota.chave.includes(searchTerm)
+      nota.numero.toString().includes(searchTerm) ||
+      nota.destinatario.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      nota.protocolo.includes(searchTerm)
   );
 
-  const handleDownloadPDF = (notaId: string, numero: string) => {
+  const handleDownloadPDF = (eventoId: string, numero: number) => {
+    const pdfUrl = `http://localhost:5000/nota/${eventoId}/pdf`;
+    window.open(pdfUrl, "_blank"); // abre em nova aba
     toast.success(`Download da NF-e ${numero} iniciado`);
   };
 
@@ -83,8 +77,6 @@ export default function Historico() {
       minute: "2-digit",
     });
   };
-
-  const totalValor = filteredNotas.reduce((sum, nota) => sum + nota.valor, 0);
 
   return (
     <div className="space-y-6">
@@ -100,7 +92,7 @@ export default function Historico() {
       <Card>
         <CardContent className="pt-6">
           <Input
-            placeholder="Buscar por número, destinatário ou chave..."
+            placeholder="Buscar por número, destinatário ou protocolo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -117,61 +109,44 @@ export default function Historico() {
                   <TableHead>Número</TableHead>
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Destinatário</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Chave de Acesso</TableHead>
+                  <TableHead>Protocolo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredNotas.map((nota) => (
-                  <TableRow key={nota.id}>
-                    <TableCell className="font-medium">
-                      {nota.numero}/{nota.serie}
-                    </TableCell>
-                    <TableCell>{formatDate(nota.dataEmissao)}</TableCell>
-                    <TableCell>{nota.destinatarioNome}</TableCell>
-                    <TableCell>
-                      R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          nota.status === "emitida"
-                            ? "default"
-                            : nota.status === "cancelada"
-                            ? "secondary"
-                            : "destructive"
-                        }
-                      >
-                        {nota.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs max-w-[200px] truncate">
-                      {nota.chave}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownloadPDF(nota.id, nota.numero)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        PDF
-                      </Button>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      Carregando notas...
                     </TableCell>
                   </TableRow>
-                ))}
-                {filteredNotas.length === 0 && (
-                  <TableRow>
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        <HistoryIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">
-                          Nenhuma nota fiscal encontrada
-                        </p>
+                ) : filteredNotas.length > 0 ? (
+                  filteredNotas.map((nota) => (
+                    <TableRow key={nota._id}>
+                      <TableCell className="font-medium">{nota.numero}</TableCell>
+                      <TableCell>{formatDate(nota.dataAutorizacao)}</TableCell>
+                      <TableCell>{nota.destinatario}</TableCell>
+                      <TableCell>{nota.protocolo}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(nota.eventoId, nota.numero)}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          PDF
+                        </Button>
                       </TableCell>
                     </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <HistoryIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Nenhuma nota fiscal encontrada
+                      </p>
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
