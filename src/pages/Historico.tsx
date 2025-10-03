@@ -29,30 +29,31 @@ export default function Historico() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
- useEffect(() => {
-  const fetchNotas = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/nota/historico");
-      if (!res.ok) throw new Error("Erro ao buscar notas fiscais");
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-      const data = await res.json();
-      console.log("Resposta API:", data);
+  useEffect(() => {
+    const fetchNotas = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/nota/historico");
+        if (!res.ok) throw new Error("Erro ao buscar notas fiscais");
 
-      setNotas(data.dados || []); // <-- pega só as notas
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao carregar histórico de notas");
-      setNotas([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const data = await res.json();
+        console.log("Resposta API:", data);
 
-  fetchNotas();
-}, []);
+        setNotas(data.dados || []);
+      } catch (err) {
+        console.error(err);
+        toast.error("Erro ao carregar histórico de notas");
+        setNotas([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-
-
+    fetchNotas();
+  }, []);
 
   const filteredNotas = notas.filter(
     (nota) =>
@@ -61,10 +62,44 @@ export default function Historico() {
       nota.protocolo.includes(searchTerm)
   );
 
-  const handleDownloadPDF = (eventoId: string, numero: number) => {
-    const pdfUrl = `http://localhost:5000/nota/${eventoId}/pdf`;
-    window.open(pdfUrl, "_blank"); // abre em nova aba
-    toast.success(`Download da NF-e ${numero} iniciado`);
+  // Paginação aplicada nos resultados filtrados
+  const totalPages = Math.ceil(filteredNotas.length / itemsPerPage);
+  const paginatedNotas = filteredNotas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleDownloadPDF = async (eventoId: string, numero: number) => {
+    try {
+      const res = await fetch(`http://localhost:5000/nota/${eventoId}/pdf`);
+      if (!res.ok) throw new Error("Erro ao baixar PDF");
+
+      const data = await res.json();
+
+      // Decodifica base64 em binário
+      const byteCharacters = atob(data.pdf);
+      const byteNumbers = new Array(byteCharacters.length)
+        .fill(0)
+        .map((_, i) => byteCharacters.charCodeAt(i));
+      const byteArray = new Uint8Array(byteNumbers);
+
+      const blob = new Blob([byteArray], {
+        type: data.mimeType || "application/pdf",
+      });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nota-${numero}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      toast.success(`Download da NF-e ${numero} concluído`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao baixar PDF");
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -94,7 +129,10 @@ export default function Historico() {
           <Input
             placeholder="Buscar por número, destinatário ou protocolo..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1); // reset na busca
+            }}
           />
         </CardContent>
       </Card>
@@ -120,8 +158,8 @@ export default function Historico() {
                       Carregando notas...
                     </TableCell>
                   </TableRow>
-                ) : filteredNotas.length > 0 ? (
-                  filteredNotas.map((nota) => (
+                ) : paginatedNotas.length > 0 ? (
+                  paginatedNotas.map((nota) => (
                     <TableRow key={nota._id}>
                       <TableCell className="font-medium">{nota.numero}</TableCell>
                       <TableCell>{formatDate(nota.dataAutorizacao)}</TableCell>
@@ -131,7 +169,9 @@ export default function Historico() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDownloadPDF(nota.eventoId, nota.numero)}
+                          onClick={() =>
+                            handleDownloadPDF(nota.eventoId, nota.numero)
+                          }
                         >
                           <Download className="h-4 w-4 mr-2" />
                           PDF
@@ -152,6 +192,31 @@ export default function Historico() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginação */}
+          {!loading && filteredNotas.length > 0 && (
+            <div className="flex justify-end items-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -61,7 +61,7 @@ export default function Resultados() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => navigate('/pedidos')}>
+          <Button variant="outline" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>

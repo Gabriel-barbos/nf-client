@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Loader2, Pencil, FileText } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, Pencil, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,13 +14,31 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import DestinatarioDrawer from "@/components/destinatarios/DestinatarioDrawer";
 import { usePedidos } from "@/hooks/usePedidos";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
+
+const DISPOSITIVOS_DISPONIVEIS = [
+  { value: "GV50", label: "GV50" },
+  { value: "X3Tech XT40", label: "X3Tech XT40" },
+  { value: "GV50CG", label: "GV50CG" },
+  { value: "Teltonika FMB130", label: "Teltonika FMB130" },
+  { value: "Teltonika FMC130", label: "Teltonika FMC130" },
+  { value: "Teltonika FMC150", label: "Teltonika FMC150" },
+];
 export default function Pedidos() {
   const navigate = useNavigate();
-  const { pedidos, loading, error, emitirNotas, salvarEdicao, obterEdicao } = usePedidos();
-  const [selected, setSelected] = useState(new Set());
+  const { pedidos, loading, error, emitirNotas, salvarEdicao, obterEdicao, atualizarPedidos } = usePedidos(); const [selected, setSelected] = useState(new Set());
   const [emitting, setEmitting] = useState(false);
+  const [drawerAberto, setDrawerAberto] = useState(false);
+  const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
   const [editando, setEditando] = useState(null);
   const [formEdicao, setFormEdicao] = useState({ quantidade: 0, dispositivo: "" });
 
@@ -53,11 +71,11 @@ export default function Pedidos() {
   const handleEmitir = async () => {
     if (selected.size === 0) return;
     setEmitting(true);
-    
+
     const result = await emitirNotas(Array.from(selected));
-    
+
     setEmitting(false);
-    
+
     if (result.success) {
       navigate('/resultados', { state: { resultados: result.resultados } });
     } else {
@@ -120,6 +138,16 @@ export default function Pedidos() {
               <FileText className="h-5 w-5 text-primary" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Pedidos - Emissão NF</h1>
+            <Button
+              variant="outline"
+              onClick={atualizarPedidos}
+              disabled={loading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+
           </div>
           <p className="text-muted-foreground">
             Total de pedidos: <Badge variant="secondary" className="ml-2">{pedidos.length}</Badge>
@@ -131,16 +159,16 @@ export default function Pedidos() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={toggleAll} 
+          <Button
+            variant="outline"
+            onClick={toggleAll}
             disabled={!pedidos.length}
             className="transition-all hover:border-primary/50"
           >
             {selected.size === pedidos.length ? "Desmarcar" : "Selecionar"} Todos
           </Button>
-          <Button 
-            onClick={handleEmitir} 
+          <Button
+            onClick={handleEmitir}
             disabled={!selected.size || emitting}
             className="min-w-[140px] transition-all shadow-md hover:shadow-lg"
           >
@@ -163,11 +191,10 @@ export default function Pedidos() {
         {pedidos.map((p) => (
           <Card
             key={p.ID}
-            className={`cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-1 ${
-              selected.has(p.ID) 
-                ? "ring-2 ring-primary shadow-lg border-primary/50" 
-                : "hover:border-primary/30"
-            }`}
+            className={`cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-1 ${selected.has(p.ID)
+              ? "ring-2 ring-primary shadow-lg border-primary/50"
+              : "hover:border-primary/30"
+              }`}
             onClick={() => toggle(p.ID)}
           >
             <CardHeader className="pb-3">
@@ -190,11 +217,10 @@ export default function Pedidos() {
                     </p>
                   </div>
                 </div>
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  p.temDestinatario 
-                    ? 'bg-green-100 dark:bg-green-900/30' 
-                    : 'bg-red-100 dark:bg-red-900/30'
-                }`}>
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${p.temDestinatario
+                  ? 'bg-green-100 dark:bg-green-900/30'
+                  : 'bg-red-100 dark:bg-red-900/30'
+                  }`}>
                   {p.temDestinatario ? (
                     <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
                   ) : (
@@ -219,7 +245,8 @@ export default function Pedidos() {
                     className="w-full text-xs border-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/50"
                     onClick={(e) => {
                       e.stopPropagation();
-                      alert('Formulário de cadastro será implementado');
+                      setPedidoSelecionado(p);
+                      setDrawerAberto(true);
                     }}
                   >
                     Cadastrar Destinatário
@@ -232,7 +259,7 @@ export default function Pedidos() {
                   <span className="text-muted-foreground">Cliente:</span>
                   <span className="font-medium">{p.Sub_Cliente?.display_value || "-"}</span>
                 </div>
-                
+
                 <div className="flex justify-between text-sm items-center">
                   <span className="text-muted-foreground">Destinatário:</span>
                   <span className="font-medium truncate ml-2">{p.Nome || "-"}</span>
@@ -258,7 +285,7 @@ export default function Pedidos() {
 
               <div className="border-t pt-3 space-y-2">
                 <p className="text-xs font-semibold text-primary mb-2 tracking-wide">EQUIPAMENTOS</p>
-                
+
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Dispositivo:</span>
                   <span className="text-xs text-right font-medium">{obterValorExibicao(p, 'dispositivo')}</span>
@@ -335,11 +362,21 @@ export default function Pedidos() {
               <Label htmlFor="dispositivo" className="text-sm font-medium">
                 Dispositivo
               </Label>
-              <Input
-                id="dispositivo"
+              <Select
                 value={formEdicao.dispositivo}
-                onChange={(e) => setFormEdicao({ ...formEdicao, dispositivo: e.target.value })}
-              />
+                onValueChange={(value) => setFormEdicao({ ...formEdicao, dispositivo: value })}
+              >
+                <SelectTrigger id="dispositivo">
+                  <SelectValue placeholder="Selecione o dispositivo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DISPOSITIVOS_DISPONIVEIS.map((disp) => (
+                    <SelectItem key={disp.value} value={disp.value}>
+                      {disp.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -352,6 +389,17 @@ export default function Pedidos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {drawerAberto && (
+        <DestinatarioDrawer
+          open={drawerAberto}
+          onOpenChange={setDrawerAberto}
+          pedido={pedidoSelecionado}
+          onSuccess={() => {
+            setDrawerAberto(false);
+            atualizarPedidos();
+          }}
+        />
+      )}
     </div>
   );
 }

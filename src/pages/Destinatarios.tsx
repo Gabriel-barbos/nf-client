@@ -26,9 +26,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import DestinatarioDrawer from "@/components/destinatarios/DestinatarioDrawer";
+import EditDestinatarioModal from "@/components/EditDestinatarioModal";
 
 export default function Destinatarios() {
-  const { destinatarios, loading, error, deleteDestinatario } = useDestinatarios();
+  const { destinatarios, loading, error, deleteDestinatario, updateDestinatario } = useDestinatarios();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -145,13 +146,10 @@ export default function Destinatarios() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(dest._id!)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                      <EditDestinatarioModal
+  destinatario={dest}
+  onUpdate={updateDestinatario}
+/>
 
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

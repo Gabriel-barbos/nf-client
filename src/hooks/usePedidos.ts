@@ -3,6 +3,7 @@ import axios from "axios";
 
 const API_URL = 'http://localhost:5000';
 const STORAGE_KEY = 'pedidos_edicoes';
+const CACHE_KEY = 'pedidos_cache';
 
 export const usePedidos = () => {
   const [pedidos, setPedidos] = useState([]);
@@ -10,10 +11,21 @@ export const usePedidos = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchPedidos();
+    carregarPedidos();
   }, []);
 
+  const carregarPedidos = () => {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (cached) {
+      setPedidos(JSON.parse(cached));
+      setLoading(false);
+    } else {
+      fetchPedidos();
+    }
+  };
+
   const fetchPedidos = async () => {
+    setLoading(true);
     try {
       const { data } = await axios.get(`${API_URL}/zoho/pedidos`);
       
@@ -29,6 +41,7 @@ export const usePedidos = () => {
       );
       
       setPedidos(pedidosComVerificacao);
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(pedidosComVerificacao));
     } catch (err) {
       console.error('Erro ao buscar pedidos:', err);
       setError(err.response?.data?.message || 'Erro ao carregar pedidos');
@@ -41,21 +54,39 @@ export const usePedidos = () => {
     try {
       const cpfCnpj = pedido.CPF || pedido.CNPJ || '';
       const cep = pedido.CEP || '';
+      const nome = pedido.Nome || '';
       
-      if (!cpfCnpj || !cep) return null;
+      // Busca 1: CPF/CNPJ + CEP
+      if (cpfCnpj && cep) {
+        const { data } = await axios.get(`${API_URL}/destinatarios`, {
+          params: {
+            cpfCnpj: cpfCnpj.replace(/\D/g, ''),
+            cep: cep.replace(/\D/g, '')
+          }
+        });
+        
+        if (data.length > 0) return data[0];
+      }
       
-      const { data } = await axios.get(`${API_URL}/destinatarios`, {
-        params: {
-          cpfCnpj: cpfCnpj.replace(/\D/g, ''),
-          cep: cep.replace(/\D/g, '')
-        }
-      });
+      // Busca 2: Nome (fallback)
+      if (nome) {
+        const { data } = await axios.get(`${API_URL}/destinatarios`, {
+          params: { nome }
+        });
+        
+        if (data.length > 0) return data[0];
+      }
       
-      return data.length > 0 ? data[0] : null;
+      return null;
     } catch (err) {
       console.error('Erro ao buscar destinatário:', err);
       return null;
     }
+  };
+
+  const atualizarPedidos = () => {
+    sessionStorage.removeItem(CACHE_KEY);
+    fetchPedidos();
   };
 
   const buscarUltimaNota = async () => {
@@ -72,117 +103,118 @@ export const usePedidos = () => {
   };
 
   const salvarEdicao = (pedidoId, campo, valor) => {
-    const edicoes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const edicoes = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
     
     if (!edicoes[pedidoId]) {
       edicoes[pedidoId] = {};
     }
     
     edicoes[pedidoId][campo] = valor;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(edicoes));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(edicoes));
   };
 
   const obterEdicao = (pedidoId) => {
-    const edicoes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const edicoes = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
     return edicoes[pedidoId] || {};
   };
 
   const limparEdicoes = (pedidoIds) => {
-    const edicoes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const edicoes = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
     pedidoIds.forEach(id => delete edicoes[id]);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(edicoes));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(edicoes));
   };
 
- const emitirNotas = async (pedidosIds) => {
-  try {
-    const ultimaNotaNumero = await buscarUltimaNota();
-    const resultados = [];
+  const emitirNotas = async (pedidosIds) => {
+    try {
+      let ultimaNotaNumero = await buscarUltimaNota();
+      const resultados = [];
 
-    for (const pedidoId of pedidosIds) {
-      const pedido = pedidos.find(p => p.ID === pedidoId);
-      if (!pedido || !pedido.destinatarioCompleto) {
-        resultados.push({
-          pedidoId,
-          sucesso: false,
-          erro: 'Destinatário não cadastrado'
-        });
-        continue;
-      }
-
-      const edicoes = obterEdicao(pedidoId);
-
-      const payload = {
-        ultimaNotaNumero: ultimaNotaNumero, // mantido, mas sem incrementar
-        Cadastro_Cliente: pedido.Cadastro_Cliente,
-        Dispositivo: edicoes.Dispositivo || pedido.Dispositivo,
-        Quantidade_de_Dispositivos: edicoes.Quantidade_de_Dispositivos || pedido.Quantidade_de_Dispositivos,
-        Chicote: pedido.Chicote,
-        Acessorios: pedido.Acessorios,
-        destinatario: {
-          Nome: pedido.destinatarioCompleto.nome,
-          CPF: pedido.destinatarioCompleto.cpf || '',
-          CNPJ: pedido.destinatarioCompleto.cnpj || '',
-          IE: pedido.destinatarioCompleto.ie || '',
-          Endereco: pedido.destinatarioCompleto.endereco,
-          Numero: pedido.destinatarioCompleto.numero,
-          Complemento: pedido.destinatarioCompleto.complemento || '',
-          Bairro: pedido.destinatarioCompleto.bairro,
-          Cidade: pedido.destinatarioCompleto.cidade,
-          Estado: pedido.destinatarioCompleto.estado,
-          CEP: pedido.destinatarioCompleto.cep,
-          Telefone: pedido.destinatarioCompleto.telefone || pedido.destinatarioCompleto.celular || ''
-        }
-      };
-
-      try {
-        const { data } = await axios.post(`${API_URL}/nota/emitir`, payload);
-
-        if (data.sucesso) {
-          resultados.push({
-            pedidoId,
-            sucesso: true,
-            numero: data.dados.numero,
-            chave: data.dados.chave,
-            protocolo: data.dados.protocolo,
-            eventoId: data.dados.eventoId,
-            pdf: data.dados.pdf,
-            destinatario: data.dados.destinatario
-          });
-        } else {
+      for (const pedidoId of pedidosIds) {
+        const pedido = pedidos.find(p => p.ID === pedidoId);
+        if (!pedido || !pedido.destinatarioCompleto) {
           resultados.push({
             pedidoId,
             sucesso: false,
-            erro: data.mensagem || 'Erro desconhecido'
+            erro: 'Destinatário não cadastrado'
+          });
+          continue;
+        }
+
+        const edicoes = obterEdicao(pedidoId);
+
+        const payload = {
+          ultimaNotaNumero: ultimaNotaNumero,
+          Cadastro_Cliente: pedido.Cadastro_Cliente,
+          Dispositivo: edicoes.Dispositivo || pedido.Dispositivo,
+          Quantidade_de_Dispositivos: edicoes.Quantidade_de_Dispositivos || pedido.Quantidade_de_Dispositivos,
+          Chicote: pedido.Chicote,
+          Acessorios: pedido.Acessorios,
+          destinatario: {
+            Nome: pedido.destinatarioCompleto.nome,
+            CPF: pedido.destinatarioCompleto.cpf || '',
+            CNPJ: pedido.destinatarioCompleto.cnpj || '',
+            IE: pedido.destinatarioCompleto.ie || '',
+            Endereco: pedido.destinatarioCompleto.endereco,
+            Numero: pedido.destinatarioCompleto.numero,
+            Complemento: pedido.destinatarioCompleto.complemento || '',
+            Bairro: pedido.destinatarioCompleto.bairro,
+            Cidade: pedido.destinatarioCompleto.cidade,
+            Estado: pedido.destinatarioCompleto.estado,
+            CEP: pedido.destinatarioCompleto.cep,
+            Telefone: pedido.destinatarioCompleto.telefone || pedido.destinatarioCompleto.celular || ''
+          }
+        };
+
+        try {
+          const { data } = await axios.post(`${API_URL}/nota/emitir`, payload);
+
+          if (data.sucesso) {
+            resultados.push({
+              pedidoId,
+              sucesso: true,
+              numero: data.dados.numero,
+              chave: data.dados.chave,
+              protocolo: data.dados.protocolo,
+              eventoId: data.dados.eventoId,
+              pdf: data.dados.pdf,
+              destinatario: data.dados.destinatario
+            });
+            
+            ultimaNotaNumero = data.dados.numero;
+          } else {
+            resultados.push({
+              pedidoId,
+              sucesso: false,
+              erro: data.mensagem || 'Erro desconhecido'
+            });
+          }
+        } catch (err) {
+          resultados.push({
+            pedidoId,
+            sucesso: false,
+            erro: err.response?.data?.erro || err.message || 'Erro ao emitir nota'
           });
         }
-      } catch (err) {
-        resultados.push({
-          pedidoId,
-          sucesso: false,
-          erro: err.response?.data?.erro || err.message || 'Erro ao emitir nota'
-        });
       }
+
+      limparEdicoes(pedidosIds);
+      return { success: true, resultados };
+
+    } catch (err) {
+      console.error('Erro ao emitir notas:', err);
+      return {
+        success: false,
+        error: err.message || 'Erro ao processar emissão'
+      };
     }
-
-    limparEdicoes(pedidosIds);
-    return { success: true, resultados };
-
-  } catch (err) {
-    console.error('Erro ao emitir notas:', err);
-    return {
-      success: false,
-      error: err.message || 'Erro ao processar emissão'
-    };
-  }
-};
-
-
+  };
 
   return { 
     pedidos, 
     loading, 
     error, 
     emitirNotas,
+    atualizarPedidos,
     salvarEdicao,
     obterEdicao
   };
