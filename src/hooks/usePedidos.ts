@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://nf-software.onrender.com';
 const STORAGE_KEY = 'pedidos_edicoes';
 const CACHE_KEY = 'pedidos_cache';
 
 export const usePedidos = () => {
-  const [pedidos, setPedidos] = useState([]);
+  const [pedidos, setPedidos] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 

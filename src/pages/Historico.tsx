@@ -36,7 +36,7 @@ export default function Historico() {
   useEffect(() => {
     const fetchNotas = async () => {
       try {
-        const res = await fetch("http://localhost:5000/nota/historico");
+        const res = await fetch("https://nf-software.onrender.com/nota/historico");
         if (!res.ok) throw new Error("Erro ao buscar notas fiscais");
 
         const data = await res.json();
@@ -71,7 +71,7 @@ export default function Historico() {
 
   const handleDownloadPDF = async (eventoId: string, numero: number) => {
     try {
-      const res = await fetch(`http://localhost:5000/nota/${eventoId}/pdf`);
+      const res = await fetch(`https://nf-software.onrender.com//nota/${eventoId}/pdf`);
       if (!res.ok) throw new Error("Erro ao baixar PDF");
 
       const data = await res.json();

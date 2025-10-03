@@ -30,7 +30,7 @@ export interface Destinatario {
   createdAt?: string;
 }
 
-const API_URL = "http://localhost:5000/destinatarios";
+const API_URL = "https://nf-software.onrender.com/destinatarios";
 export function useDestinatarios() {
   const [destinatarios, setDestinatarios] = useState<Destinatario[]>([]);
   const [loading, setLoading] = useState(true);
