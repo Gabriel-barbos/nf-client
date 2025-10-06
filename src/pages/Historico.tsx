@@ -71,7 +71,7 @@ export default function Historico() {
 
   const handleDownloadPDF = async (eventoId: string, numero: number) => {
     try {
-      const res = await fetch(`https://nf-software.onrender.com//nota/${eventoId}/pdf`);
+      const res = await fetch(`https://nf-software.onrender.com/nota/${eventoId}/pdf`);
       if (!res.ok) throw new Error("Erro ao baixar PDF");
 
       const data = await res.json();
