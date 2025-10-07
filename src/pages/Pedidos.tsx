@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import DestinatarioDrawer from "@/components/destinatarios/DestinatarioDrawer";
+import ModalCadastroDestinatario from "@/components/ModalCadastroDestinatario";
 import { usePedidos } from "@/hooks/usePedidos";
 import {
   Select,
@@ -389,17 +389,15 @@ export default function Pedidos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {drawerAberto && (
-        <DestinatarioDrawer
-          open={drawerAberto}
-          onOpenChange={setDrawerAberto}
-          pedido={pedidoSelecionado}
-          onSuccess={() => {
-            setDrawerAberto(false);
-            atualizarPedidos();
-          }}
-        />
-      )}
+      <ModalCadastroDestinatario
+  open={drawerAberto}
+  onOpenChange={setDrawerAberto}
+  pedido={pedidoSelecionado}
+  onSuccess={() => {
+    setDrawerAberto(false);
+    atualizarPedidos();
+  }}
+/>
     </div>
   );
 }
