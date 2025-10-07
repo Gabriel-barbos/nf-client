@@ -24,6 +24,74 @@ export const usePedidos = () => {
     }
   };
 
+  const normalizarTexto = (texto) => {
+    if (!texto) return '';
+    return texto
+      .toString()
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const normalizarNumero = (valor) => {
+    if (!valor) return '';
+    return valor.toString().replace(/\D/g, '');
+  };
+
+  const verificarNomeSimilar = (nomeA, nomeB) => {
+    const a = normalizarTexto(nomeA);
+    const b = normalizarTexto(nomeB);
+    
+    if (!a || !b) return false;
+    
+    // Verifica se todos os termos de A estão em B
+    const termosA = a.split(' ').filter(t => t.length > 2);
+    const termosB = b.split(' ').filter(t => t.length > 2);
+    
+    return termosA.every(termo => 
+      termosB.some(termoB => termoB.includes(termo) || termo.includes(termoB))
+    );
+  };
+
+  const buscarDestinatario = async (pedido) => {
+    try {
+      const cpfCnpj = normalizarNumero(pedido.CPF || pedido.CNPJ);
+      const cep = normalizarNumero(pedido.CEP);
+      
+      if (!cpfCnpj || !cep) return null;
+
+      // Busca todos os destinatários
+      const { data: todosDestinatarios } = await axios.get(`${API_URL}/destinatarios`);
+      
+      // 1ª Validação: CPF/CNPJ + CEP (PRIORIDADE)
+      const destinatarioCpfCep = todosDestinatarios.find(dest => {
+        const destCpfCnpj = normalizarNumero(dest.cpf || dest.cnpj);
+        const destCep = normalizarNumero(dest.cep);
+        
+        return destCpfCnpj === cpfCnpj && destCep === cep;
+      });
+      
+      if (destinatarioCpfCep) return destinatarioCpfCep;
+
+      // 2ª Validação: Nome + CEP (FALLBACK)
+      if (pedido.Nome) {
+        const destinatarioNomeCep = todosDestinatarios.find(dest => {
+          const destCep = normalizarNumero(dest.cep);
+          return verificarNomeSimilar(pedido.Nome, dest.nome) && destCep === cep;
+        });
+        
+        if (destinatarioNomeCep) return destinatarioNomeCep;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Erro ao buscar destinatário:', err);
+      return null;
+    }
+  };
+
   const fetchPedidos = async () => {
     setLoading(true);
     try {
@@ -50,40 +118,6 @@ export const usePedidos = () => {
     }
   };
 
-  const buscarDestinatario = async (pedido) => {
-    try {
-      const cpfCnpj = pedido.CPF || pedido.CNPJ || '';
-      const cep = pedido.CEP || '';
-      const nome = pedido.Nome || '';
-      
-      // Busca 1: CPF/CNPJ + CEP
-      if (cpfCnpj && cep) {
-        const { data } = await axios.get(`${API_URL}/destinatarios`, {
-          params: {
-            cpfCnpj: cpfCnpj.replace(/\D/g, ''),
-            cep: cep.replace(/\D/g, '')
-          }
-        });
-        
-        if (data.length > 0) return data[0];
-      }
-      
-      // Busca 2: Nome (fallback)
-      if (nome) {
-        const { data } = await axios.get(`${API_URL}/destinatarios`, {
-          params: { nome }
-        });
-        
-        if (data.length > 0) return data[0];
-      }
-      
-      return null;
-    } catch (err) {
-      console.error('Erro ao buscar destinatário:', err);
-      return null;
-    }
-  };
-
   const atualizarPedidos = () => {
     sessionStorage.removeItem(CACHE_KEY);
     fetchPedidos();
@@ -104,11 +138,7 @@ export const usePedidos = () => {
 
   const salvarEdicao = (pedidoId, campo, valor) => {
     const edicoes = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
-    
-    if (!edicoes[pedidoId]) {
-      edicoes[pedidoId] = {};
-    }
-    
+    if (!edicoes[pedidoId]) edicoes[pedidoId] = {};
     edicoes[pedidoId][campo] = valor;
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(edicoes));
   };
@@ -141,7 +171,6 @@ export const usePedidos = () => {
         }
 
         const edicoes = obterEdicao(pedidoId);
-
         const payload = {
           ultimaNotaNumero: ultimaNotaNumero,
           Cadastro_Cliente: pedido.Cadastro_Cliente,
