@@ -171,6 +171,8 @@ export const usePedidos = () => {
         }
 
         const edicoes = obterEdicao(pedidoId);
+        const dest = pedido.destinatarioCompleto;
+        
         const payload = {
           ultimaNotaNumero: ultimaNotaNumero,
           Cadastro_Cliente: pedido.Cadastro_Cliente,
@@ -179,18 +181,18 @@ export const usePedidos = () => {
           Chicote: pedido.Chicote,
           Acessorios: pedido.Acessorios,
           destinatario: {
-            Nome: pedido.destinatarioCompleto.nome,
-            CPF: pedido.destinatarioCompleto.cpf || '',
-            CNPJ: pedido.destinatarioCompleto.cnpj || '',
-            IE: pedido.destinatarioCompleto.ie || '',
-            Endereco: pedido.destinatarioCompleto.endereco,
-            Numero: pedido.destinatarioCompleto.numero,
-            Complemento: pedido.destinatarioCompleto.complemento || '',
-            Bairro: pedido.destinatarioCompleto.bairro,
-            Cidade: pedido.destinatarioCompleto.cidade,
-            Estado: pedido.destinatarioCompleto.estado,
-            CEP: pedido.destinatarioCompleto.cep,
-            Telefone: pedido.destinatarioCompleto.telefone || pedido.destinatarioCompleto.celular || ''
+            Nome: (dest.nome || '').toUpperCase(),
+            CPF: normalizarNumero(dest.cpf),
+            CNPJ: normalizarNumero(dest.cnpj),
+            IE: (dest.ie || '').toUpperCase(),
+            Endereco: (dest.endereco || '').toUpperCase(),
+            Numero: dest.numero || '',
+            Complemento: (dest.complemento || '').toUpperCase(),
+            Bairro: (dest.bairro || '').toUpperCase(),
+            Cidade: (dest.cidade || '').toUpperCase(),
+            Estado: (dest.estado || '').toUpperCase(),
+            CEP: normalizarNumero(dest.cep),
+            Telefone: normalizarNumero(dest.telefone || dest.celular)
           }
         };
 
