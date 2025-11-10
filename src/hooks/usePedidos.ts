@@ -35,9 +35,20 @@ export const usePedidos = () => {
       .trim();
   };
 
+  // MELHORADA: Normalização mais robusta
   const normalizarNumero = (valor) => {
-    if (!valor) return '';
-    return valor.toString().replace(/\D/g, '');
+    if (!valor && valor !== 0) return '';
+    
+    // Converte para string e remove TODOS os caracteres não numéricos
+    let numero = valor.toString()
+      .replace(/\D/g, '')  // Remove tudo que não é dígito
+      .trim();
+    
+    // Remove zeros à esquerda, mas mantém se for só zero
+    numero = numero.replace(/^0+/, '') || '0';
+    
+    // Garante que retorna string vazia se não houver dígitos
+    return numero === '0' && valor.toString().replace(/\D/g, '').length === 0 ? '' : numero;
   };
 
   const verificarNomeSimilar = (nomeA, nomeB) => {
@@ -57,10 +68,23 @@ export const usePedidos = () => {
 
   const buscarDestinatario = async (pedido) => {
     try {
-      const cpfCnpj = normalizarNumero(pedido.CPF || pedido.CNPJ);
-      const cep = normalizarNumero(pedido.CEP);
+      // MELHORADO: Normalização mais robusta e logs para debug
+      const cpfCnpjPedido = normalizarNumero(pedido.CPF || pedido.CNPJ);
+      const cepPedido = normalizarNumero(pedido.CEP);
       
-      if (!cpfCnpj || !cep) return null;
+      console.log('🔍 Buscando destinatário:', {
+        pedidoId: pedido.ID,
+        cpfCnpjOriginal: pedido.CPF || pedido.CNPJ,
+        cpfCnpjNormalizado: cpfCnpjPedido,
+        cepOriginal: pedido.CEP,
+        cepNormalizado: cepPedido,
+        nome: pedido.Nome
+      });
+      
+      if (!cpfCnpjPedido || !cepPedido) {
+        console.warn('⚠️ CPF/CNPJ ou CEP ausente no pedido');
+        return null;
+      }
 
       // Busca todos os destinatários
       const { data: todosDestinatarios } = await axios.get(`${API_URL}/destinatarios`);
@@ -70,24 +94,54 @@ export const usePedidos = () => {
         const destCpfCnpj = normalizarNumero(dest.cpf || dest.cnpj);
         const destCep = normalizarNumero(dest.cep);
         
-        return destCpfCnpj === cpfCnpj && destCep === cep;
+        const matchCpf = destCpfCnpj === cpfCnpjPedido;
+        const matchCep = destCep === cepPedido;
+        
+        if (matchCpf && matchCep) {
+          console.log('✅ Destinatário encontrado (CPF/CNPJ + CEP):', dest.nome);
+        }
+        
+        return matchCpf && matchCep;
       });
       
       if (destinatarioCpfCep) return destinatarioCpfCep;
+
+      console.log('⚠️ Não encontrado por CPF/CNPJ + CEP, tentando Nome + CEP...');
 
       // 2ª Validação: Nome + CEP (FALLBACK)
       if (pedido.Nome) {
         const destinatarioNomeCep = todosDestinatarios.find(dest => {
           const destCep = normalizarNumero(dest.cep);
-          return verificarNomeSimilar(pedido.Nome, dest.nome) && destCep === cep;
+          const matchNome = verificarNomeSimilar(pedido.Nome, dest.nome);
+          const matchCep = destCep === cepPedido;
+          
+          if (matchNome && matchCep) {
+            console.log('✅ Destinatário encontrado (Nome + CEP):', dest.nome);
+          }
+          
+          return matchNome && matchCep;
         });
         
         if (destinatarioNomeCep) return destinatarioNomeCep;
       }
       
+      console.error('❌ Destinatário não encontrado para o pedido:', pedido.ID);
+      
+      // Log adicional para debug: mostra alguns destinatários do BD
+      console.log('📋 Amostra de destinatários no BD (primeiros 3):');
+      todosDestinatarios.slice(0, 3).forEach(dest => {
+        console.log({
+          nome: dest.nome,
+          cpfOriginal: dest.cpf || dest.cnpj,
+          cpfNormalizado: normalizarNumero(dest.cpf || dest.cnpj),
+          cepOriginal: dest.cep,
+          cepNormalizado: normalizarNumero(dest.cep)
+        });
+      });
+      
       return null;
     } catch (err) {
-      console.error('Erro ao buscar destinatário:', err);
+      console.error('❌ Erro ao buscar destinatário:', err);
       return null;
     }
   };
