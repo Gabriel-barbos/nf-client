@@ -44,8 +44,7 @@ export const usePedidos = () => {
       .replace(/\D/g, '')  // Remove tudo que não é dígito
       .trim();
     
-    // Remove zeros à esquerda, mas mantém se for só zero
-    numero = numero.replace(/^0+/, '') || '0';
+  
     
     // Garante que retorna string vazia se não houver dígitos
     return numero === '0' && valor.toString().replace(/\D/g, '').length === 0 ? '' : numero;
